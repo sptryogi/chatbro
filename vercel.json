@@ -1,0 +1,13 @@
+{
+    "version": 2,
+    "projects": [
+      {
+        "name": "chatbro-web",
+        "path": "apps/web"
+      },
+      {
+        "name": "chatbro-api",
+        "path": "apps/api"
+      }
+    ]
+  }
