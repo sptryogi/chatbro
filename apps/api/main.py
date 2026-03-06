@@ -92,36 +92,48 @@ async def login(req: LoginRequest):
 
 @app.post("/chat")
 async def chat(req: ChatRequest, user: dict = Depends(verify_token)):
+    logger.info(f"Chat request: model={req.model}, user={user['username']}")
+    
     try:
-        logger.info(f"Chat request received: model={req.model}, messages={len(req.messages)}")
+        # Cek API keys tersedia
+        api_keys = {
+            "gemini": GEMINI_API_KEY,
+            "deepseek": DEEPSEEK_API_KEY,
+            "groq": GROQ_API_KEY,
+            "kimi": KIMI_API_KEY
+        }
         
-        # Cek API keys
-        if req.model == "gemini" and not GEMINI_API_KEY:
-            raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
-        if req.model == "deepseek" and not DEEPSEEK_API_KEY:
-            raise HTTPException(status_code=500, detail="DEEPSEEK_API_KEY not configured")
-        if req.model == "groq" and not GROQ_API_KEY:
-            raise HTTPException(status_code=500, detail="GROQ_API_KEY not configured")
-        if req.model == "kimi" and not KIMI_API_KEY:
-            raise HTTPException(status_code=500, detail="KIMI_API_KEY not configured")
+        if not api_keys.get(req.model):
+            logger.error(f"API key for {req.model} not configured")
+            raise HTTPException(status_code=500, detail=f"API key for {req.model} not configured")
         
-        # Build system prompt with knowledge context
+        # Build messages
         system_content = req.system_instruction or "You are a helpful assistant."
         if req.knowledge_context:
-            system_content += f"\n\nUse the following knowledge context to answer:\n{req.knowledge_context}"
+            system_content += f"\n\nContext:\n{req.knowledge_context}"
         
         messages = [{"role": "system", "content": system_content}] + req.messages
+        logger.info(f"Sending {len(messages)} messages to {req.model}")
         
+        # Route ke model yang sesuai
         if req.model == "gemini":
-            return await chat_gemini(req, messages)
+            result = await chat_gemini(req, messages)
         elif req.model == "deepseek":
-            return await chat_deepseek(req, messages)
+            result = await chat_deepseek(req, messages)
         elif req.model == "groq":
-            return await chat_groq(req, messages)
+            result = await chat_groq(req, messages)
         elif req.model == "kimi":
-            return await chat_kimi(req, messages)
+            result = await chat_kimi(req, messages)
+        else:
+            raise HTTPException(status_code=400, detail="Invalid model")
+            
+        logger.info(f"Chat success: {req.model}")
+        return result
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Chat error: {str(e)}")
+        logger.error(f"Chat error ({req.model}): {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
