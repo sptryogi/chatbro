@@ -177,11 +177,22 @@ export default function ChatInterface() {
       await api.addMessage(session.id, 'assistant', response.response);
       
     } catch (error: any) {
-      console.error('Chat error:', error); // ✅ Log detail error
+      // ✅ Fix: Better error message extraction
+      let errorMsg = 'Unknown error';
+      if (error instanceof Error) {
+        errorMsg = error.message;
+      } else if (typeof error === 'string') {
+        errorMsg = error;
+      } else {
+        errorMsg = JSON.stringify(error);
+      }
+      
+      console.error('Chat error:', errorMsg);
+      
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `Error: ${error.message || 'Failed to get response'}`, // ✅ Tampilkan error asli
+        content: `❌ Error: ${errorMsg}`,
         created_at: new Date().toISOString(),
       };
       setMessages(prev => [...prev, errorMessage]);
