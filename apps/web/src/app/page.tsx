@@ -9,11 +9,19 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    // Double check auth di client side
     if (!api.isAuthenticated()) {
-      router.push('/login');
+      router.replace('/login');
     }
   }, [router]);
+
+  // Tampilkan loading atau null saat cek auth
+  if (!api.isAuthenticated()) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return <ChatInterface />;
 }
