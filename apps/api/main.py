@@ -17,7 +17,10 @@ app = FastAPI(title="ChatBro API")
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Ganti dengan domain Vercel Anda nanti
+    allow_origins=[
+        "http://localhost:3000",
+        "https://chatbro-web.vercel.app",  # Ganti dengan domain frontend Anda
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
