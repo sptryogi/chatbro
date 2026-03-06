@@ -83,7 +83,9 @@ async def login(req: LoginRequest):
     if not user.data:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    if not bcrypt.checkpw(req.password.encode(), user.data["password_hash"].encode()):
+    # if not bcrypt.checkpw(req.password.encode(), user.data["password_hash"].encode()):
+    #     raise HTTPException(status_code=401, detail="Invalid credentials")
+    if req.password != user.data["password_hash"]:  # Plain text compare
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     return {"token": req.username, "user": {"id": user.data["id"], "username": user.data["username"]}}
