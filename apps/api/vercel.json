@@ -13,11 +13,11 @@
       }
     ],
     "env": {
-      "SUPABASE_URL": "@supabase_url",
-      "SUPABASE_SERVICE_KEY": "@supabase_service_key",
-      "GEMINI_API_KEY": "@gemini_api_key",
-      "DEEPSEEK_API_KEY": "@deepseek_api_key",
-      "GROQ_API_KEY": "@groq_api_key",
-      "KIMI_API_KEY": "@kimi_api_key"
+      "SUPABASE_URL": "@SUPABASE_URL",
+      "SUPABASE_SERVICE_KEY": "@SUPABASE_SEVICE_KEY",
+      "GEMINI_API_KEY": "@GEMINI_API_KEY",
+      "DEEPSEEK_API_KEY": "@DEEPSEEK_API_KEY",
+      "GROQ_API_KEY": "@GROQ_API_KEY",
+      "KIMI_API_KEY": "@KIMI_API_KEY"
     }
   }
