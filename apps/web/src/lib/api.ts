@@ -42,10 +42,40 @@ class ApiClient {
         ...options.headers,
     };
 
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    console.log(`API Request: ${API_URL}${endpoint}`);
+
+    try {
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        ...options,
+        headers,
+      });
+
+      // Log response status
+      console.log(`Response: ${response.status} ${response.statusText}`);
+
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        
+        try {
+          const errorData = await response.json();
+          console.error('Error data:', errorData);
+          // ✅ Fix: Ambil detail message dengan benar
+          errorMessage = errorData.detail || errorData.message || JSON.stringify(errorData);
+        } catch (e) {
+          // Kalau bukan JSON, ambil text
+          const text = await response.text();
+          errorMessage = text || errorMessage;
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      return response.json();
+    } catch (error: any) {
+      console.error('Fetch error:', error);
+      throw error;
+    }
+  }
 
     // Kalau 401, logout otomatis
     if (response.status === 401) {
