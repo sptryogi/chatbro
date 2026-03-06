@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://chatbro-api.vercel.app/';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://chatbro-api.vercel.app';
 
 class ApiClient {
   private token: string | null = null;
