@@ -254,12 +254,16 @@ async def get_messages(session_id: str, user: dict = Depends(verify_token)):
     messages = supabase.table("chat_messages").select("*").eq("session_id", session_id).order("created_at").execute()
     return messages.data
 
+class MessageCreate(BaseModel):
+    role: str
+    content: str
+
 @app.post("/sessions/{session_id}/messages")
-async def add_message(session_id: str, role: str, content: str, user: dict = Depends(verify_token)):
+async def add_message(session_id: str, req: MessageCreate, user: dict = Depends(verify_token)):
     message = supabase.table("chat_messages").insert({
         "session_id": session_id,
-        "role": role,
-        "content": content
+        "role": req.role,
+        "content": req.content
     }).execute()
     return message.data[0]
 
