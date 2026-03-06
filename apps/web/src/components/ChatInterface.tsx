@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Paperclip, Settings, Plus, Menu, Bot, User, FileText, Image as ImageIcon, X, ChevronLeft } from 'lucide-react';
+import { Send, Paperclip, Settings, Plus, LogOut, Menu, Bot, User, FileText, Image as ImageIcon, X, ChevronLeft } from 'lucide-react';
 import { api } from '@/lib/api';
 import { ModelType, Message, ChatSession, KnowledgeFile, ChatSettings } from '@/types';
 import { cn } from '@/lib/utils';
@@ -365,6 +365,15 @@ export default function ChatInterface() {
               )}
             >
               <Settings className="w-5 h-5" />
+            </button>
+            
+            {/* Tambahkan tombol logout */}
+            <button
+              onClick={() => api.logout()}
+              className="p-2 hover:bg-red-100 dark:hover:bg-red-900 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors"
+              title="Logout"
+            >
+              <LogOut className="w-5 h-5" />
             </button>
           </div>
         </div>
