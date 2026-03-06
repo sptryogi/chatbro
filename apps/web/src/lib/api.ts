@@ -25,17 +25,25 @@ class ApiClient {
         ...options.headers,
     };
 
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    console.log(`API Request: ${API_URL}${endpoint}`, options.method || 'GET'); // ✅ Tambahkan log
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Something went wrong');
+    try {
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        ...options,
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        console.error('API Error:', errorData); // ✅ Log error
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('Fetch error:', error); // ✅ Log network error
+      throw error;
     }
-
-    return response.json();
   }
 
   // Auth
