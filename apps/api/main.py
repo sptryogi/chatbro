@@ -15,11 +15,16 @@ import httpx
 app = FastAPI(title="ChatBro API")
 
 # CORS
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Ganti bagian CORS ini:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://chatbro-web.vercel.app",  # Ganti dengan domain frontend Anda
+        "https://chatbro-web.vercel.app",  # ✅ Hapus spasi!
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -85,6 +90,18 @@ async def login(req: LoginRequest):
 @app.post("/chat")
 async def chat(req: ChatRequest, user: dict = Depends(verify_token)):
     try:
+        logger.info(f"Chat request received: model={req.model}, messages={len(req.messages)}")
+        
+        # Cek API keys
+        if req.model == "gemini" and not GEMINI_API_KEY:
+            raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
+        if req.model == "deepseek" and not DEEPSEEK_API_KEY:
+            raise HTTPException(status_code=500, detail="DEEPSEEK_API_KEY not configured")
+        if req.model == "groq" and not GROQ_API_KEY:
+            raise HTTPException(status_code=500, detail="GROQ_API_KEY not configured")
+        if req.model == "kimi" and not KIMI_API_KEY:
+            raise HTTPException(status_code=500, detail="KIMI_API_KEY not configured")
+        
         # Build system prompt with knowledge context
         system_content = req.system_instruction or "You are a helpful assistant."
         if req.knowledge_context:
@@ -101,64 +118,101 @@ async def chat(req: ChatRequest, user: dict = Depends(verify_token)):
         elif req.model == "kimi":
             return await chat_kimi(req, messages)
     except Exception as e:
+        logger.error(f"Chat error: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
 async def chat_gemini(req: ChatRequest, messages: List[dict]):
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-pro')
-    
-    # Convert messages to Gemini format
-    chat = model.start_chat(history=[])
-    for msg in messages[:-1]:
-        if msg["role"] == "user":
-            chat.send_message(msg["content"])
-    
-    response = chat.send_message(
-        messages[-1]["content"],
-        generation_config=genai.types.GenerationConfig(
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel('gemini-1.5-flash')  # Update model name
+        
+        # Gemini pakai format berbeda - gabungkan semua jadi satu prompt
+        conversation = []
+        for msg in messages:
+            if msg["role"] == "system":
+                conversation.append(f"System: {msg['content']}")
+            elif msg["role"] == "user":
+                conversation.append(f"User: {msg['content']}")
+            else:
+                conversation.append(f"Assistant: {msg['content']}")
+        
+        prompt = "\n".join(conversation) + "\nAssistant:"
+        
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=req.temperature,
+                top_p=req.top_p,
+                max_output_tokens=req.max_tokens
+            )
+        )
+        
+        return {"response": response.text, "model": "gemini"}
+    except Exception as e:
+        logger.error(f"Gemini error: {str(e)}")
+        raise
+
+# Update fungsi chat_deepseek - fix URL:
+async def chat_deepseek(req: ChatRequest, messages: List[dict]):
+    try:
+        client = openai.OpenAI(
+            api_key=DEEPSEEK_API_KEY, 
+            base_url="https://api.deepseek.com"  # ✅ Hapus spasi!
+        )
+        
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=messages,
             temperature=req.temperature,
             top_p=req.top_p,
-            max_output_tokens=req.max_tokens
+            max_tokens=req.max_tokens
         )
-    )
-    return {"response": response.text, "model": "gemini"}
+        return {"response": response.choices[0].message.content, "model": "deepseek"}
+    except Exception as e:
+        logger.error(f"Deepseek error: {str(e)}")
+        raise
 
-async def chat_deepseek(req: ChatRequest, messages: List[dict]):
-    client = openai.OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
-    
-    response = client.chat.completions.create(
-        model="deepseek-chat",
-        messages=messages,
-        temperature=req.temperature,
-        top_p=req.top_p,
-        max_tokens=req.max_tokens
-    )
-    return {"response": response.choices[0].message.content, "model": "deepseek"}
-
+# Update fungsi chat_groq - fix URL:
 async def chat_groq(req: ChatRequest, messages: List[dict]):
-    client = openai.OpenAI(api_key=GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")
-    
-    response = client.chat.completions.create(
-        model="mixtral-8x7b-32768",  # atau model lain yang tersedia
-        messages=messages,
-        temperature=req.temperature,
-        top_p=req.top_p,
-        max_tokens=req.max_tokens
-    )
-    return {"response": response.choices[0].message.content, "model": "groq"}
+    try:
+        client = openai.OpenAI(
+            api_key=GROQ_API_KEY, 
+            base_url="https://api.groq.com/openai/v1"  # ✅ Hapus spasi!
+        )
+        
+        response = client.chat.completions.create(
+            model="mixtral-8x7b-32768",
+            messages=messages,
+            temperature=req.temperature,
+            top_p=req.top_p,
+            max_tokens=req.max_tokens
+        )
+        return {"response": response.choices[0].message.content, "model": "groq"}
+    except Exception as e:
+        logger.error(f"Groq error: {str(e)}")
+        raise
 
+# Update fungsi chat_kimi - fix URL:
 async def chat_kimi(req: ChatRequest, messages: List[dict]):
-    # Kimi API menggunakan format OpenAI-compatible
-    client = openai.OpenAI(api_key=KIMI_API_KEY, base_url="https://api.moonshot.cn/v1")
-    
-    response = client.chat.completions.create(
-        model="moonshot-v1-8k",
-        messages=messages,
-        temperature=req.temperature,
-        top_p=req.top_p,
-        max_tokens=req.max_tokens
-    )
-    return {"response": response.choices[0].message.content, "model": "kimi"}
+    try:
+        client = openai.OpenAI(
+            api_key=KIMI_API_KEY, 
+            base_url="https://api.moonshot.cn/v1"  # ✅ Hapus spasi!
+        )
+        
+        response = client.chat.completions.create(
+            model="moonshot-v1-8k",
+            messages=messages,
+            temperature=req.temperature,
+            top_p=req.top_p,
+            max_tokens=req.max_tokens
+        )
+        return {"response": response.choices[0].message.content, "model": "kimi"}
+    except Exception as e:
+        logger.error(f"Kimi error: {str(e)}")
+        raise
 
 # Sessions
 @app.post("/sessions")
