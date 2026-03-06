@@ -106,14 +106,24 @@ export default function ChatInterface() {
   const handleSend = async () => {
     if (!input.trim() && attachments.length === 0) return;
     
-    if (!currentSession) {
-      await createNewSession();
+    // ✅ Fix: Buat session dulu kalau belum ada
+    let session = currentSession;
+    if (!session) {
+      try {
+        session = await createNewSession();
+        if (!session) {
+          console.error('Failed to create session');
+          return;
+        }
+      } catch (err) {
+        console.error('Create session error:', err);
+        return;
+      }
     }
 
     const userContent = input;
     setInput('');
     
-    // Add user message
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -124,27 +134,30 @@ export default function ChatInterface() {
     setIsLoading(true);
 
     try {
-      // Save user message
-      if (currentSession) {
-        await api.addMessage(currentSession.id, 'user', userContent);
-      }
+      // ✅ Fix: Pastikan session sudah ada sebelum save message
+      await api.addMessage(session.id, 'user', userContent);
 
       // Get knowledge context
       let knowledgeContext = '';
       if (selectedKnowledge.length > 0) {
         for (const fileId of selectedKnowledge) {
-          const content = await api.getKnowledgeContent(fileId);
-          knowledgeContext += content.content + '\n\n';
+          try {
+            const content = await api.getKnowledgeContent(fileId);
+            knowledgeContext += content.content + '\n\n';
+          } catch (e) {
+            console.error('Knowledge fetch error:', e);
+          }
         }
       }
 
-      // Prepare messages for API
+      // Prepare messages - ✅ Fix: jangan include system message di array, sudah di backend
       const apiMessages = messages.concat(userMessage).map(m => ({
         role: m.role,
         content: m.content,
-      }));
+      })).filter(m => m.role !== 'system'); // Filter out system messages
 
-      // Call API
+      console.log('Sending chat request:', { model: selectedModel, messageCount: apiMessages.length }); // ✅ Log
+
       const response = await api.chat({
         model: selectedModel,
         messages: apiMessages,
@@ -155,7 +168,6 @@ export default function ChatInterface() {
         knowledge_context: knowledgeContext || undefined,
       });
 
-      // Add assistant message
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -164,15 +176,14 @@ export default function ChatInterface() {
       };
       setMessages(prev => [...prev, assistantMessage]);
 
-      if (currentSession) {
-        await api.addMessage(currentSession.id, 'assistant', response.response);
-      }
-    } catch (error) {
-      console.error('Chat error:', error);
+      await api.addMessage(session.id, 'assistant', response.response);
+      
+    } catch (error: any) {
+      console.error('Chat error:', error); // ✅ Log detail error
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: `Error: ${error.message || 'Failed to get response'}`, // ✅ Tampilkan error asli
         created_at: new Date().toISOString(),
       };
       setMessages(prev => [...prev, errorMessage]);
