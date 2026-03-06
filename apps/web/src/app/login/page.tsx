@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Bot, Lock, User } from 'lucide-react';
 
@@ -11,6 +11,17 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Ambil callback URL kalau ada
+  const callbackUrl = searchParams.get('callbackUrl') || '/';
+
+  // Cek kalau sudah login, redirect ke home
+  useEffect(() => {
+    if (api.isAuthenticated()) {
+      router.push('/');
+    }
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,7 +30,8 @@ export default function LoginPage() {
 
     try {
       await api.login(username, password);
-      router.push('/');
+      // Redirect ke callback URL atau home
+      router.push(callbackUrl);
     } catch (err: any) {
       setError(err.message || 'Login failed');
     } finally {
