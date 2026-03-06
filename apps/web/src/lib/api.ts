@@ -7,7 +7,6 @@ class ApiClient {
     this.token = token;
     if (typeof window !== 'undefined') {
       localStorage.setItem('chatbro_token', token);
-      // Set cookie untuk middleware (expires 7 hari)
       document.cookie = `chatbro_token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
     }
   }
@@ -19,12 +18,10 @@ class ApiClient {
     return null;
   }
 
-  // Tambahkan method untuk cek auth
   isAuthenticated(): boolean {
     return !!this.getToken();
   }
 
-  // Tambahkan method logout
   logout() {
     this.token = null;
     if (typeof window !== 'undefined') {
@@ -42,42 +39,11 @@ class ApiClient {
         ...options.headers,
     };
 
-    console.log(`API Request: ${API_URL}${endpoint}`);
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
 
-    try {
-      const response = await fetch(`${API_URL}${endpoint}`, {
-        ...options,
-        headers,
-      });
-
-      // Log response status
-      console.log(`Response: ${response.status} ${response.statusText}`);
-
-      if (!response.ok) {
-        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-        
-        try {
-          const errorData = await response.json();
-          console.error('Error data:', errorData);
-          // ✅ Fix: Ambil detail message dengan benar
-          errorMessage = errorData.detail || errorData.message || JSON.stringify(errorData);
-        } catch (e) {
-          // Kalau bukan JSON, ambil text
-          const text = await response.text();
-          errorMessage = text || errorMessage;
-        }
-        
-        throw new Error(errorMessage);
-      }
-
-      return response.json();
-    } catch (error: any) {
-      console.error('Fetch error:', error);
-      throw error;
-    }
-  }
-
-    // Kalau 401, logout otomatis
     if (response.status === 401) {
       this.logout();
       throw new Error('Session expired. Please login again.');
@@ -91,7 +57,6 @@ class ApiClient {
     return response.json();
   }
 
-  // ... rest of methods sama
   async login(username: string, password: string) {
     const data = await this.fetch('/auth/login', {
       method: 'POST',
@@ -151,7 +116,7 @@ class ApiClient {
     const response = await fetch(`${API_URL}/knowledge/upload`, {
       method: 'POST',
       headers: {
-        ...(token && { 'Authorization': `Bearer ${token}` }),
+        ...(token && { Authorization: `Bearer ${token}` }),
       },
       body: formData,
     });
