@@ -7,6 +7,8 @@ class ApiClient {
     this.token = token;
     if (typeof window !== 'undefined') {
       localStorage.setItem('chatbro_token', token);
+      // Set cookie untuk middleware (expires 7 hari)
+      document.cookie = `chatbro_token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
     }
   }
 
@@ -17,6 +19,21 @@ class ApiClient {
     return null;
   }
 
+  // Tambahkan method untuk cek auth
+  isAuthenticated(): boolean {
+    return !!this.getToken();
+  }
+
+  // Tambahkan method logout
+  logout() {
+    this.token = null;
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('chatbro_token');
+      document.cookie = 'chatbro_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      window.location.href = '/login';
+    }
+  }
+
   private async fetch(endpoint: string, options: RequestInit = {}) {
     const token = this.getToken();
     const headers: HeadersInit = {
@@ -25,28 +42,26 @@ class ApiClient {
         ...options.headers,
     };
 
-    console.log(`API Request: ${API_URL}${endpoint}`, options.method || 'GET'); // ✅ Tambahkan log
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
 
-    try {
-      const response = await fetch(`${API_URL}${endpoint}`, {
-        ...options,
-        headers,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
-        console.error('API Error:', errorData); // ✅ Log error
-        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      return response.json();
-    } catch (error) {
-      console.error('Fetch error:', error); // ✅ Log network error
-      throw error;
+    // Kalau 401, logout otomatis
+    if (response.status === 401) {
+      this.logout();
+      throw new Error('Session expired. Please login again.');
     }
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Something went wrong');
+    }
+
+    return response.json();
   }
 
-  // Auth
+  // ... rest of methods sama
   async login(username: string, password: string) {
     const data = await this.fetch('/auth/login', {
       method: 'POST',
@@ -56,7 +71,6 @@ class ApiClient {
     return data;
   }
 
-  // Chat
   async chat(params: {
     model: string;
     messages: Array<{ role: string; content: string }>;
@@ -72,7 +86,6 @@ class ApiClient {
     });
   }
 
-  // Sessions
   async createSession(session: {
     title: string;
     model: string;
@@ -100,7 +113,6 @@ class ApiClient {
     });
   }
 
-  // Knowledge
   async uploadKnowledge(file: File) {
     const formData = new FormData();
     formData.append('file', file);
@@ -113,6 +125,11 @@ class ApiClient {
       },
       body: formData,
     });
+    
+    if (response.status === 401) {
+      this.logout();
+      throw new Error('Session expired');
+    }
     
     if (!response.ok) throw new Error('Upload failed');
     return response.json();
