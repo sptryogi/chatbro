@@ -51,7 +51,19 @@ class ApiClient {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.detail || 'Something went wrong');
+      console.error("API ERROR:", error);
+    
+      let message = 'Something went wrong';
+    
+      if (typeof error.detail === 'string') {
+        message = error.detail;
+      } else if (error.detail?.message) {
+        message = error.detail.message;
+      } else {
+        message = JSON.stringify(error);
+      }
+    
+      throw new Error(message);
     }
 
     return response.json();
