@@ -165,11 +165,12 @@ export default function ChatInterface() {
         system_instruction: settings.systemInstruction,
         knowledge_context: knowledgeContext || undefined,
       });
+      console.log("AI response:", response);
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: response.response,
+        content: response.response || response.message || JSON.stringify(response),
         created_at: new Date().toISOString(),
       };
       setMessages(prev => [...prev, assistantMessage]);
