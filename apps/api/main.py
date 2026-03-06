@@ -8,7 +8,8 @@ import json
 import bcrypt
 from datetime import datetime
 from supabase import create_client, Client
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import openai
 import httpx
 
@@ -125,27 +126,30 @@ async def chat(req: ChatRequest, user: dict = Depends(verify_token)):
 
 async def chat_gemini(req: ChatRequest, messages: List[dict]):
     try:
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-1.5-flash')  # Update model name
+        # Buat client baru
+        client = genai.Client(api_key=GEMINI_API_KEY)
         
-        # Gemini pakai format berbeda - gabungkan semua jadi satu prompt
-        conversation = []
+        # Convert messages ke format Gemini
+        contents = []
+        system_instruction = None
+        
         for msg in messages:
             if msg["role"] == "system":
-                conversation.append(f"System: {msg['content']}")
+                system_instruction = msg["content"]
             elif msg["role"] == "user":
-                conversation.append(f"User: {msg['content']}")
-            else:
-                conversation.append(f"Assistant: {msg['content']}")
+                contents.append({"role": "user", "parts": [{"text": msg["content"]}]})
+            elif msg["role"] == "assistant":
+                contents.append({"role": "model", "parts": [{"text": msg["content"]}]})
         
-        prompt = "\n".join(conversation) + "\nAssistant:"
-        
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.types.GenerationConfig(
+        # Generate response
+        response = client.generate_content(
+            model="gemini-1.5-flash",
+            contents=contents,
+            config=types.GenerateContentConfig(
                 temperature=req.temperature,
                 top_p=req.top_p,
-                max_output_tokens=req.max_tokens
+                max_output_tokens=req.max_tokens,
+                system_instruction=system_instruction
             )
         )
         
