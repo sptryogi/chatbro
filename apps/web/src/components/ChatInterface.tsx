@@ -87,7 +87,7 @@ export default function ChatInterface() {
     }
   };
 
-  const createNewSession = async () => {
+  const createNewSession = async (): Promise<ChatSession | null> => {
     try {
       const session = await api.createSession({
         title: 'New Chat',
@@ -98,29 +98,27 @@ export default function ChatInterface() {
       setSessions([session, ...sessions]);
       setCurrentSession(session);
       setMessages([]);
+      return session; // ✅ Tambahkan return
     } catch (error) {
       console.error('Failed to create session:', error);
+      return null; // ✅ Return null kalau error
     }
   };
-
+  
   const handleSend = async () => {
     if (!input.trim() && attachments.length === 0) return;
     
     // ✅ Fix: Buat session dulu kalau belum ada
     let session = currentSession;
     if (!session) {
-      try {
-        session = await createNewSession();
-        if (!session) {
-          console.error('Failed to create session');
-          return;
-        }
-      } catch (err) {
-        console.error('Create session error:', err);
+      const newSession = await createNewSession();
+      if (!newSession) {
+        console.error('Failed to create session');
         return;
       }
+      session = newSession;
     }
-
+  
     const userContent = input;
     setInput('');
     
