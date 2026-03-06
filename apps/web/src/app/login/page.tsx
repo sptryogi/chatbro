@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Bot, Lock, User } from 'lucide-react';
 
-export default function LoginPage() {
+// Pisahkan komponen yang pakai useSearchParams
+function LoginForm() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -13,10 +14,8 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  // Ambil callback URL kalau ada
   const callbackUrl = searchParams.get('callbackUrl') || '/';
 
-  // Cek kalau sudah login, redirect ke home
   useEffect(() => {
     if (api.isAuthenticated()) {
       router.push('/');
@@ -30,7 +29,6 @@ export default function LoginPage() {
 
     try {
       await api.login(username, password);
-      // Redirect ke callback URL atau home
       router.push(callbackUrl);
     } catch (err: any) {
       setError(err.message || 'Login failed');
@@ -107,5 +105,23 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Loading fallback
+function LoginLoading() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    </div>
+  );
+}
+
+// Export default dengan Suspense
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginLoading />}>
+      <LoginForm />
+    </Suspense>
   );
 }
