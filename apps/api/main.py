@@ -201,7 +201,7 @@ async def chat_groq(req: ChatRequest, messages: List[dict]):
         )
         
         response = client.chat.completions.create(
-            model="mixtral-8x7b-32768",
+            model="llama-3.1-8b-instant",
             messages=messages,
             temperature=req.temperature,
             top_p=req.top_p,
@@ -221,7 +221,7 @@ async def chat_kimi(req: ChatRequest, messages: List[dict]):
         )
         
         response = client.chat.completions.create(
-            model="moonshot-v1-8k",
+            model="kimi-k2-0905-preview",
             messages=messages,
             temperature=req.temperature,
             top_p=req.top_p,
