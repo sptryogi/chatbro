@@ -340,6 +340,38 @@ async def get_knowledge_content(file_id: str, user: dict = Depends(verify_token)
 async def health():
     return {"status": "ok"}
 
+@app.put("/sessions/{session_id}")
+async def update_session(
+    session_id: str, 
+    title: str = Form(...), 
+    user: dict = Depends(verify_token)
+):
+    try:
+        result = supabase.table("chat_sessions").update({
+            "title": title,
+            "updated_at": datetime.now().isoformat()
+        }).eq("id", session_id).eq("user_id", user["id"]).execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Session not found")
+        return result.data[0]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/sessions/{session_id}")
+async def delete_session(session_id: str, user: dict = Depends(verify_token)):
+    try:
+        # Delete messages first
+        supabase.table("chat_messages").delete().eq("session_id", session_id).execute()
+        # Delete session
+        result = supabase.table("chat_sessions").delete().eq("id", session_id).eq("user_id", user["id"]).execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Session not found")
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
