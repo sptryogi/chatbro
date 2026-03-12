@@ -270,13 +270,24 @@ export default function ChatInterface() {
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <Bot className="w-5 h-5 text-white" />
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  ChatBro
+                </span>
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                ChatBro
-              </span>
+              
+              {/* Tombol Hide Sidebar - di kanan atas sidebar */}
+              <button
+                onClick={() => setSidebarHidden(true)}
+                className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title="Hide Sidebar"
+              >
+                <ChevronLeft className="w-5 h-5 text-gray-500" />
+              </button>
             </div>
             <button
               onClick={createNewSession}
@@ -441,12 +452,22 @@ export default function ChatInterface() {
             </button>
 
             <button
-              onClick={() => setSidebarHidden(!sidebarHidden)}
-              className="hidden lg:flex p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-              title={sidebarHidden ? "Show Sidebar" : "Hide Sidebar"}
+              onClick={() => setShowSidebar(!showSidebar)}
+              className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
             >
-              {sidebarHidden ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+              <Menu className="w-5 h-5" />
             </button>
+            
+            {/* Tombol Unhide Sidebar - muncul kalau sidebar hidden */}
+            {sidebarHidden && (
+              <button
+                onClick={() => setSidebarHidden(false)}
+                className="hidden lg:flex p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                title="Show Sidebar"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            )}
             
             {/* Model Selector */}
             <div className="flex items-center gap-2">
