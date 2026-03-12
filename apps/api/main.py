@@ -236,14 +236,18 @@ async def chat_kimi(req: ChatRequest, messages: List[dict]):
 # Sessions
 @app.post("/sessions")
 async def create_session(req: SessionCreate, user: dict = Depends(verify_token)):
-    session = supabase.table("chat_sessions").insert({
-        "user_id": user["id"],
-        "title": req.title,
-        "model": req.model,
-        "settings": req.settings,
-        "system_instruction": req.system_instruction
-    }).execute()
-    return session.data[0]
+    try:
+        # Kalau title kosong, akan diupdate nanti
+        session = supabase.table("chat_sessions").insert({
+            "user_id": user["id"],
+            "title": req.title or "New Chat",
+            "model": req.model,
+            "settings": req.settings,
+            "system_instruction": req.system_instruction
+        }).execute()
+        return session.data[0]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/sessions")
 async def get_sessions(user: dict = Depends(verify_token)):
