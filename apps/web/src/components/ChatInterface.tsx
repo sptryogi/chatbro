@@ -105,6 +105,18 @@ export default function ChatInterface() {
       return null; // ✅ Return null kalau error
     }
   };
+
+  const generateTitleFromMessage = (content: string): string => {
+    // Ambil 3 kata pertama
+    const words = content.trim().split(/\s+/).slice(0, 3);
+    let title = words.join(' ');
+    // Tambah ellipsis kalau panjang
+    if (content.trim().split(/\s+/).length > 3) {
+      title += '...';
+    }
+    // Max 50 chars
+    return title.length > 50 ? title.substring(0, 50) + '...' : title;
+  };
   
   const handleSend = async () => {
     if (!input.trim() && attachments.length === 0) return;
@@ -177,6 +189,19 @@ export default function ChatInterface() {
       setMessages(prev => [...prev, assistantMessage]);
 
       await api.addMessage(session.id, 'assistant', response.response);
+
+      // Update title kalau ini pesan pertama dari AI dan title masih default
+      if (session && (session.title === 'New Chat' || !session.title)) {
+        const newTitle = generateTitleFromMessage(response.response);
+        await api.updateSession(session.id, newTitle);
+        // Update local state
+        setSessions(prev => prev.map(s => 
+          s.id === session.id ? { ...s, title: newTitle } : s
+        ));
+        if (currentSession?.id === session.id) {
+          setCurrentSession({ ...session, title: newTitle });
+        }
+      }
       
     } catch (error: any) {
       // ✅ Fix: Better error message extraction
@@ -352,9 +377,9 @@ export default function ChatInterface() {
                 
                 <div className="max-h-32 overflow-y-auto space-y-1">
                   {knowledgeFiles.map(file => (
-                    <label
+                    <div
                       key={file.id}
-                      className="flex items-center gap-2 p-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer"
+                      className="flex items-center gap-2 p-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 rounded group"
                     >
                       <input
                         type="checkbox"
@@ -370,7 +395,23 @@ export default function ChatInterface() {
                       />
                       <span className="truncate flex-1">{file.original_name}</span>
                       <span className="text-gray-400">{formatFileSize(file.file_size)}</span>
-                    </label>
+                      
+                      {/* Delete button */}
+                      <button
+                        onClick={() => {
+                          if (confirm(`Delete ${file.original_name}?`)) {
+                            api.deleteKnowledge(file.id).then(() => {
+                              // Remove from selected kalau ada
+                              setSelectedKnowledge(prev => prev.filter(id => id !== file.id));
+                              loadKnowledge();
+                            });
+                          }
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded transition-opacity"
+                      >
+                        <Trash2 className="w-3 h-3 text-red-500" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>
