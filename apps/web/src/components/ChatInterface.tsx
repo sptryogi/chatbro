@@ -264,23 +264,62 @@ export default function ChatInterface() {
           {/* Sessions List */}
           <div className="flex-1 overflow-y-auto p-2">
             {sessions.map(session => (
-              <button
+              <div
                 key={session.id}
-                onClick={() => setCurrentSession(session)}
                 className={cn(
-                  "w-full text-left p-3 rounded-lg mb-1 transition-colors",
+                  "group flex items-center justify-between p-3 rounded-lg mb-1 transition-colors",
                   currentSession?.id === session.id
                     ? "bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-500"
                     : "hover:bg-gray-100 dark:hover:bg-gray-700"
                 )}
               >
-                <p className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
-                  {session.title}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {MODELS.find(m => m.id === session.model)?.name}
-                </p>
-              </button>
+                <button
+                  onClick={() => setCurrentSession(session)}
+                  className="flex-1 text-left min-w-0"
+                >
+                  <p className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
+                    {session.title}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {MODELS.find(m => m.id === session.model)?.name}
+                  </p>
+                </button>
+                
+                {/* Action buttons - muncul saat hover */}
+                <div className="hidden group-hover:flex items-center gap-1 ml-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const newTitle = prompt('Rename chat:', session.title);
+                      if (newTitle && newTitle.trim()) {
+                        api.updateSession(session.id, newTitle.trim()).then(() => loadSessions());
+                      }
+                    }}
+                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                    title="Rename"
+                  >
+                    <Pencil className="w-3 h-3 text-gray-500" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm('Delete this chat?')) {
+                        api.deleteSession(session.id).then(() => {
+                          if (currentSession?.id === session.id) {
+                            setCurrentSession(null);
+                            setMessages([]);
+                          }
+                          loadSessions();
+                        });
+                      }
+                    }}
+                    className="p-1 hover:bg-red-100 dark:hover:bg-red-900 rounded"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-3 h-3 text-red-500" />
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
 
