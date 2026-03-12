@@ -13,6 +13,10 @@ from google.genai import types
 import openai
 from openai import OpenAI
 import httpx
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+import io
+import base64
 
 app = FastAPI(title="ChatBro API")
 
@@ -373,6 +377,42 @@ async def delete_session(session_id: str, user: dict = Depends(verify_token)):
         if not result.data:
             raise HTTPException(status_code=404, detail="Session not found")
         return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+GOOGLE_DRIVE_CREDENTIALS = os.getenv("GOOGLE_DRIVE_CREDENTIALS")  # JSON string
+
+@app.post("/knowledge/drive")
+async def upload_from_drive(
+    file_id: str = Form(...),
+    user: dict = Depends(verify_token)
+):
+    try:
+        # Setup Google Drive API
+        creds_info = json.loads(GOOGLE_DRIVE_CREDENTIALS)
+        credentials = service_account.Credentials.from_service_account_info(
+            creds_info,
+            scopes=['https://www.googleapis.com/auth/drive.readonly']
+        )
+        service = build('drive', 'v3', credentials=credentials)
+        
+        # Download file
+        request = service.files().get_media(fileId=file_id)
+        file_metadata = service.files().get(fileId=file_id).execute()
+        
+        from googleapiclient.http import MediaIoBaseDownload
+        fh = io.BytesIO()
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while done is False:
+            status, done = downloader.next_chunk()
+        
+        content = fh.getvalue()
+        
+        # Process sama seperti upload biasa...
+        # (extract text, save to supabase, etc)
+        
+        return {"success": True, "file": file_metadata}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
