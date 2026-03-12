@@ -11,6 +11,7 @@ from supabase import create_client, Client
 from google import genai
 from google.genai import types
 import openai
+from openai import OpenAI
 import httpx
 
 app = FastAPI(title="ChatBro API")
@@ -215,9 +216,9 @@ async def chat_groq(req: ChatRequest, messages: List[dict]):
 # Update fungsi chat_kimi - fix URL:
 async def chat_kimi(req: ChatRequest, messages: List[dict]):
     try:
-        client = openai.OpenAI(
+        client = OpenAI(
             api_key=KIMI_API_KEY, 
-            base_url="https://api.moonshot.cn/v1"  # ✅ Hapus spasi!
+            base_url="https://api.moonshot.ai/v1"  # ✅ Hapus spasi!
         )
         
         response = client.chat.completions.create(
