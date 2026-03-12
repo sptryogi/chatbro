@@ -33,6 +33,7 @@ export default function ChatInterface() {
   const [showSettings, setShowSettings] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [sidebarHidden, setSidebarHidden] = useState(false);
+  const [showDrivePicker, setShowDrivePicker] = useState(false);
   const [knowledgeFiles, setKnowledgeFiles] = useState<KnowledgeFile[]>([]);
   const [selectedKnowledge, setSelectedKnowledge] = useState<string[]>([]);
   const [showKnowledge, setShowKnowledge] = useState(false);
@@ -373,6 +374,13 @@ export default function ChatInterface() {
                   className="w-full text-xs px-3 py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
                   + Upload File
+                </button>
+
+                <button
+                  onClick={() => setShowDrivePicker(true)}
+                  className="w-full text-xs px-3 py-2 border border-dashed border-blue-300 dark:border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                >
+                  + Import from Google Drive
                 </button>
                 
                 <div className="max-h-32 overflow-y-auto space-y-1">
