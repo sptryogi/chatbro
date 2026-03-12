@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Paperclip, Settings, Plus, LogOut, Menu, Bot, User, FileText, Image as ImageIcon, X, ChevronLeft } from 'lucide-react';
+import { Send, Paperclip, Settings, Plus, LogOut, Menu, Bot, User, FileText, Image as ImageIcon, X, ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { ModelType, Message, ChatSession, KnowledgeFile, ChatSettings } from '@/types';
 import { cn } from '@/lib/utils';
@@ -32,6 +32,7 @@ export default function ChatInterface() {
   const [settings, setSettings] = useState<ChatSettings>(DEFAULT_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [sidebarHidden, setSidebarHidden] = useState(false);
   const [knowledgeFiles, setKnowledgeFiles] = useState<KnowledgeFile[]>([]);
   const [selectedKnowledge, setSelectedKnowledge] = useState<string[]>([]);
   const [showKnowledge, setShowKnowledge] = useState(false);
@@ -235,7 +236,9 @@ export default function ChatInterface() {
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-50 w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-all duration-300 ease-in-out",
+        sidebarHidden ? "-translate-x-full w-0 opacity-0" : "translate-x-0 w-80 opacity-100",
+        "lg:relative lg:translate-x-0",
         showSidebar ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
@@ -347,6 +350,14 @@ export default function ChatInterface() {
               className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
             >
               <Menu className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={() => setSidebarHidden(!sidebarHidden)}
+              className="hidden lg:flex p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              title={sidebarHidden ? "Show Sidebar" : "Hide Sidebar"}
+            >
+              {sidebarHidden ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
             </button>
             
             {/* Model Selector */}
