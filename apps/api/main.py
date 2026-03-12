@@ -156,8 +156,8 @@ async def chat_gemini(req: ChatRequest, messages: List[dict]):
                 contents.append({"role": "model", "parts": [{"text": msg["content"]}]})
         
         # Generate response
-        response = client.generate_content(
-            model="gemini-1.5-flash",
+        response = client.models.generate_content(
+            model="gemini-3-flash-preview",
             contents=contents,
             config=types.GenerateContentConfig(
                 temperature=req.temperature,
