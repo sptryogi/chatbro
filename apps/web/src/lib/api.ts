@@ -153,6 +153,19 @@ class ApiClient {
   async deleteKnowledge(fileId: string) {
     return this.fetch(`/knowledge/${fileId}`, { method: 'DELETE' });
   }
+
+  async updateSession(sessionId: string, title: string) {
+    return this.fetch(`/sessions/${sessionId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ title }),
+    });
+  }
+  
+  async deleteSession(sessionId: string) {
+    return this.fetch(`/sessions/${sessionId}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const api = new ApiClient();
