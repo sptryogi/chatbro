@@ -701,7 +701,7 @@ export default function ChatInterface() {
               </div>
             )}
             
-            <div className="flex gap-2 items-end">
+            <div className="flex gap-2 items-center">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -711,7 +711,7 @@ export default function ChatInterface() {
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="p-3 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 h-12 flex items-center justify-center"
               >
                 <Paperclip className="w-5 h-5" />
               </button>
@@ -728,15 +728,15 @@ export default function ChatInterface() {
                   }}
                   placeholder="Message ChatBro..."
                   rows={1}
-                  className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 border-0 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:outline-none max-h-32"
-                  style={{ minHeight: '52px' }}
+                  className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 border-0 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:outline-none max-h-32 leading-5"
+                  style={{ minHeight: '48px' }}
                 />
               </div>
               
               <button
                 onClick={handleSend}
                 disabled={isLoading || (!input.trim() && attachments.length === 0)}
-                className="p-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-colors"
+                className="p-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-colors h-12 flex items-center justify-center"
               >
                 <Send className="w-5 h-5" />
               </button>
