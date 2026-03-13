@@ -179,28 +179,33 @@ export default function ChatInterface() {
         system_instruction: settings.systemInstruction,
         knowledge_context: knowledgeContext || undefined,
       });
-      console.log("AI response:", response);
+
+      // Ambil konten response dengan aman
+      const aiContent = response.response || response.message || (typeof response === 'string' ? response : '');
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: response.response || response.message || JSON.stringify(response),
+        content: aiContent,
         created_at: new Date().toISOString(),
       };
       setMessages(prev => [...prev, assistantMessage]);
 
-      await api.addMessage(session.id, 'assistant', response.response);
+      // Kirim aiContent, bukan response.response yang berpotensi undefined
+      await api.addMessage(session.id, 'assistant', aiContent);
 
-      // Update title kalau ini pesan pertama dari AI dan title masih default
-      if (session && (session.title === 'New Chat' || !session.title)) {
-        const newTitle = generateTitleFromMessage(response.response);
-        await api.updateSession(session.id, newTitle);
-        // Update local state
-        setSessions(prev => prev.map(s => 
-          s.id === session.id ? { ...s, title: newTitle } : s
-        ));
-        if (currentSession?.id === session.id) {
-          setCurrentSession({ ...session, title: newTitle });
+      // Update title hanya jika title masih default dan aiContent ada
+      if (session && (session.title === 'New Chat' || !session.title) && aiContent) {
+        const newTitle = generateTitleFromMessage(aiContent);
+        if (newTitle) { // Pastikan title tidak kosong
+           await api.updateSession(session.id, newTitle);
+           // Update local state
+           setSessions(prev => prev.map(s => 
+             s.id === session.id ? { ...s, title: newTitle } : s
+           ));
+           if (currentSession?.id === session.id) {
+             setCurrentSession({ ...session, title: newTitle });
+           }
         }
       }
       
@@ -262,10 +267,12 @@ export default function ChatInterface() {
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-all duration-300 ease-in-out",
-        sidebarHidden ? "-translate-x-full w-0 opacity-0" : "translate-x-0 w-80 opacity-100",
-        "lg:relative lg:translate-x-0",
-        showSidebar ? "translate-x-0" : "-translate-x-full"
+        "fixed inset-y-0 left-0 z-50 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out",
+        // Logika Desktop
+        sidebarHidden ? "lg:w-0 lg:-translate-x-full" : "lg:w-80 lg:translate-x-0",
+        // Logika Mobile
+        showSidebar ? "translate-x-0 w-80" : "-translate-x-full w-80",
+        "lg:relative" // Tetap relative agar mengambil ruang saat muncul
       )}>
         <div className="flex flex-col h-full">
           {/* Header */}
@@ -444,20 +451,24 @@ export default function ChatInterface() {
         {/* Top Bar */}
         <div className="h-16 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-between px-4">
           <div className="flex items-center gap-4">
+            {/* Tombol Menu Mobile */}
             <button
-              onClick={() => setShowSidebar(!showSidebar)}
+              onClick={() => setShowSidebar(true)}
               className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
             >
               <Menu className="w-5 h-5" />
             </button>
-
-            <button
-              onClick={() => setSidebarHidden(!sidebarHidden)}
-              className="hidden lg:flex p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-              title={sidebarHidden ? "Show Sidebar" : "Hide Sidebar"}
-            >
-              {sidebarHidden ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-            </button>
+            
+            {/* Tombol Unhide Sidebar Desktop */}
+            {sidebarHidden && (
+              <button
+                onClick={() => setSidebarHidden(false)}
+                className="hidden lg:flex p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                title="Show Sidebar"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            )}
             
             {/* Model Selector */}
             <div className="flex items-center gap-2">
