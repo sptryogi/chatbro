@@ -58,6 +58,21 @@ export default function ChatInterface() {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) { // lg breakpoint
+        // Di desktop, kalau sidebar hidden biarkan hidden (user yang kontrol)
+        // Tapi kalau mobile sidebar terbuka, tutup saat resize ke desktop
+        if (showSidebar) {
+          setShowSidebar(false);
+        }
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [showSidebar]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -267,12 +282,10 @@ export default function ChatInterface() {
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out",
-        // Logika Desktop
-        sidebarHidden ? "lg:w-0 lg:-translate-x-full" : "lg:w-80 lg:translate-x-0",
-        // Logika Mobile
-        showSidebar ? "translate-x-0 w-80" : "-translate-x-full w-80",
-        "lg:relative" // Tetap relative agar mengambil ruang saat muncul
+        "fixed inset-y-0 left-0 z-50 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-all duration-300 ease-in-out h-full",
+        sidebarHidden ? "-translate-x-full w-0 opacity-0 overflow-hidden" : "translate-x-0 w-80 opacity-100",
+        !sidebarHidden && showSidebar ? "translate-x-0" : "",
+        sidebarHidden ? "pointer-events-none" : "pointer-events-auto"
       )}>
         <div className="flex flex-col h-full">
           {/* Header */}
@@ -289,7 +302,10 @@ export default function ChatInterface() {
               
               {/* Tombol Hide Sidebar - di kanan atas sidebar */}
               <button
-                onClick={() => setSidebarHidden(true)}
+                onClick={() => {
+                  setSidebarHidden(true);
+                  setShowSidebar(false); // Reset mobile state juga
+                }}
                 className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 title="Hide Sidebar"
               >
@@ -451,22 +467,26 @@ export default function ChatInterface() {
         {/* Top Bar */}
         <div className="h-16 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-between px-4">
           <div className="flex items-center gap-4">
-            {/* Tombol Menu Mobile */}
+            {/* Mobile: tombol menu hanya muncul kalau sidebar hidden */}
             <button
-              onClick={() => setShowSidebar(true)}
-              className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              onClick={() => setShowSidebar(!showSidebar)}
+              className={cn(
+                "p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all",
+                !sidebarHidden && "lg:hidden" // Desktop hide, mobile show
+              )}
             >
               <Menu className="w-5 h-5" />
             </button>
             
-            {/* Tombol Unhide Sidebar Desktop */}
+            {/* Desktop: tombol unhide hanya muncul kalau sidebar hidden */}
             {sidebarHidden && (
               <button
                 onClick={() => setSidebarHidden(false)}
-                className="hidden lg:flex p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                className="hidden lg:flex p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg items-center gap-2"
                 title="Show Sidebar"
               >
                 <ChevronRight className="w-5 h-5" />
+                <span className="text-sm text-gray-600">Show sidebar</span>
               </button>
             )}
             
