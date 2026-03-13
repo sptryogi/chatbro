@@ -452,12 +452,22 @@ export default function ChatInterface() {
             </button>
 
             <button
-              onClick={() => setSidebarHidden(!sidebarHidden)}
-              className="hidden lg:flex p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-              title={sidebarHidden ? "Show Sidebar" : "Hide Sidebar"}
+              onClick={() => setShowSidebar(!showSidebar)}
+              className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
             >
-              {sidebarHidden ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+              <Menu className="w-5 h-5" />
             </button>
+            
+            {/* Tombol Unhide Sidebar - muncul kalau sidebar hidden */}
+            {sidebarHidden && (
+              <button
+                onClick={() => setSidebarHidden(false)}
+                className="hidden lg:flex p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                title="Show Sidebar"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            )}
             
             {/* Model Selector */}
             <div className="flex items-center gap-2">
