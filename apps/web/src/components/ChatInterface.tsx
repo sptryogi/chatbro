@@ -61,17 +61,14 @@ export default function ChatInterface() {
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 1024) { // lg breakpoint
-        // Di desktop, kalau sidebar hidden biarkan hidden (user yang kontrol)
-        // Tapi kalau mobile sidebar terbuka, tutup saat resize ke desktop
-        if (showSidebar) {
-          setShowSidebar(false);
-        }
+        // Reset mobile sidebar state saat resize ke desktop
+        setShowSidebar(false);
       }
     };
     
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [showSidebar]);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -282,10 +279,10 @@ export default function ChatInterface() {
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-all duration-300 ease-in-out h-full",
-        sidebarHidden ? "-translate-x-full w-0 opacity-0 overflow-hidden" : "translate-x-0 w-80 opacity-100",
-        !sidebarHidden && showSidebar ? "translate-x-0" : "",
-        sidebarHidden ? "pointer-events-none" : "pointer-events-auto"
+        "fixed lg:relative inset-y-0 left-0 z-50 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-all duration-300 ease-in-out h-full flex-shrink-0",
+        sidebarHidden && !showSidebar ? "-translate-x-full w-0 opacity-0 overflow-hidden" : "translate-x-0 w-80 opacity-100",
+        "lg:translate-x-0", // Desktop selalu visible kecuali di-hide
+        sidebarHidden ? "lg:w-0 lg:opacity-0 lg:overflow-hidden" : "lg:w-80"
       )}>
         <div className="flex flex-col h-full">
           {/* Header */}
@@ -304,13 +301,20 @@ export default function ChatInterface() {
               <button
                 onClick={() => {
                   setSidebarHidden(true);
-                  setShowSidebar(false); // Reset mobile state juga
+                  setShowSidebar(false);
                 }}
                 className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 title="Hide Sidebar"
               >
                 <ChevronLeft className="w-5 h-5 text-gray-500" />
               </button>
+
+              {showSidebar && !sidebarHidden && (
+                <div 
+                  className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                  onClick={() => setShowSidebar(false)}
+                />
+              )}
             </div>
             <button
               onClick={createNewSession}
@@ -467,33 +471,27 @@ export default function ChatInterface() {
         {/* Top Bar */}
         <div className="h-16 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-between px-4">
           <div className="flex items-center gap-4">
-            {/* Mobile: tombol menu hanya muncul kalau sidebar hidden */}
+            {/* Tombol Menu Mobile - hanya muncul di mobile saat sidebar hidden */}
             <button
-              onClick={() => setShowSidebar(!showSidebar)}
+              onClick={() => setShowSidebar(true)}
               className={cn(
-                "p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all",
-                !sidebarHidden && "lg:hidden" // Desktop hide, mobile show
+                "p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg lg:hidden",
+                !sidebarHidden && "hidden" // Sembunyi kalau sidebar visible
               )}
             >
               <Menu className="w-5 h-5" />
             </button>
-
-            {showSidebar && (
-              <div 
-                className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-                onClick={() => setShowSidebar(false)}
-              />
-            )}
             
-            {/* Desktop: tombol unhide hanya muncul kalau sidebar hidden */}
+            {/* Desktop: Tombol unhide dengan Logo saja */}
             {sidebarHidden && (
               <button
                 onClick={() => setSidebarHidden(false)}
-                className="hidden lg:flex p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg items-center gap-2"
+                className="hidden lg:flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 title="Show Sidebar"
               >
-                <ChevronRight className="w-5 h-5" />
-                <span className="text-sm text-gray-600">Show sidebar</span>
+                <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <Bot className="w-4 h-4 text-white" />
+                </div>
               </button>
             )}
             
