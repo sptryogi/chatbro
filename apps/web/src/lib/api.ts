@@ -155,10 +155,26 @@ class ApiClient {
   }
 
   async updateSession(sessionId: string, title: string) {
-    return this.fetch(`/sessions/${sessionId}`, {
+    // Backend expect FormData, bukan JSON
+    const formData = new FormData();
+    formData.append('title', title);
+    
+    const token = this.getToken();
+    const response = await fetch(`${API_URL}/sessions/${sessionId}`, {
       method: 'PUT',
-      body: JSON.stringify({ title }),
+      headers: {
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+        // Jangan set Content-Type, biarkan browser set dengan boundary
+      },
+      body: formData,
     });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Update failed' }));
+      throw new Error(error.detail);
+    }
+    
+    return response.json();
   }
   
   async deleteSession(sessionId: string) {
