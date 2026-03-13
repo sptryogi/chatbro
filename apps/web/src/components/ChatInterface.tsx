@@ -477,6 +477,13 @@ export default function ChatInterface() {
             >
               <Menu className="w-5 h-5" />
             </button>
+
+            {showSidebar && (
+              <div 
+                className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                onClick={() => setShowSidebar(false)}
+              />
+            )}
             
             {/* Desktop: tombol unhide hanya muncul kalau sidebar hidden */}
             {sidebarHidden && (
