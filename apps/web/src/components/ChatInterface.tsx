@@ -262,12 +262,10 @@ export default function ChatInterface() {
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-all duration-300 ease-in-out flex flex-col",
-        sidebarHidden 
-          ? "-translate-x-full w-0 opacity-0 overflow-hidden" 
-          : "translate-x-0 w-80 opacity-100",
-        "lg:translate-x-0 lg:w-80 lg:opacity-100 lg:relative lg:flex",
-        showSidebar ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        "fixed inset-y-0 left-0 z-50 w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-all duration-300 ease-in-out",
+        sidebarHidden ? "-translate-x-full w-0 opacity-0" : "translate-x-0 w-80 opacity-100",
+        "lg:relative lg:translate-x-0",
+        showSidebar ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
           {/* Header */}
@@ -282,10 +280,10 @@ export default function ChatInterface() {
                 </span>
               </div>
               
-              {/* Tombol Hide Sidebar - hanya muncul di desktop */}
+              {/* Tombol Hide Sidebar - di kanan atas sidebar */}
               <button
                 onClick={() => setSidebarHidden(true)}
-                className="hidden lg:flex p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 title="Hide Sidebar"
               >
                 <ChevronLeft className="w-5 h-5 text-gray-500" />
@@ -446,24 +444,19 @@ export default function ChatInterface() {
         {/* Top Bar */}
         <div className="h-16 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-between px-4">
           <div className="flex items-center gap-4">
-            {/* Mobile Menu Button - hanya muncul di mobile */}
             <button
               onClick={() => setShowSidebar(!showSidebar)}
               className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
             >
               <Menu className="w-5 h-5" />
             </button>
-            
-            {/* Desktop Unhide Button - muncul hanya di desktop ketika sidebar hidden */}
+
             <button
-              onClick={() => setSidebarHidden(false)}
-              className={cn(
-                "hidden lg:flex p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all",
-                sidebarHidden ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none w-0 overflow-hidden"
-              )}
-              title="Show Sidebar"
+              onClick={() => setSidebarHidden(!sidebarHidden)}
+              className="hidden lg:flex p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              title={sidebarHidden ? "Show Sidebar" : "Hide Sidebar"}
             >
-              <ChevronRight className="w-5 h-5" />
+              {sidebarHidden ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
             </button>
             
             {/* Model Selector */}
