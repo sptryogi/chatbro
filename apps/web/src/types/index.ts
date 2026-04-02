@@ -1,4 +1,4 @@
-export type ModelType = 'gemini' | 'deepseek' | 'groq' | 'kimi';
+export type ModelType = 'gemini' | 'deepseek' | 'groq' | 'openai';
 
 export interface ChatSettings {
   temperature: number;
