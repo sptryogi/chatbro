@@ -11,8 +11,8 @@ import remarkGfm from 'remark-gfm';
 const MODELS: { id: ModelType; name: string; color: string; description: string }[] = [
   { id: 'gemini', name: 'Gemini Pro', color: 'bg-blue-500', description: 'Google Gemini Pro' },
   { id: 'deepseek', name: 'DeepSeek', color: 'bg-purple-500', description: 'DeepSeek Chat' },
-  { id: 'groq', name: 'Groq', color: 'bg-orange-500', description: 'Groq (Mixtral)' },
-  { id: 'kimi', name: 'Kimi', color: 'bg-emerald-500', description: 'Moonshot Kimi' },
+  { id: 'groq', name: 'Groq', color: 'bg-orange-500', description: 'Groq (Llama)' },
+  { id: 'openai', name: 'ChatGPT', color: 'bg-green-500', description: 'OpenAI GPT' },
 ];
 
 const DEFAULT_SETTINGS: ChatSettings = {
@@ -28,7 +28,7 @@ export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<ModelType>('gemini');
+  const [selectedModel, setSelectedModel] = useState<ModelType>('openai');
   const [settings, setSettings] = useState<ChatSettings>(DEFAULT_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
