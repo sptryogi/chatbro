@@ -83,12 +83,25 @@ export default function ChatInterface() {
     }
   };
 
+  // const loadMessages = async (sessionId: string) => {
+  //   try {
+  //     const data = await api.getMessages(sessionId);
+  //     setMessages(data);
+  //   } catch (error) {
+  //     console.error('Failed to load messages:', error);
+  //   }
+  // };
+
   const loadMessages = async (sessionId: string) => {
     try {
       const data = await api.getMessages(sessionId);
-      setMessages(data);
+      // ✅ Pastikan urutan benar (oldest first)
+      setMessages(data.sort((a: Message, b: Message) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      ));
     } catch (error) {
       console.error('Failed to load messages:', error);
+      setMessages([]); // Reset kalau error
     }
   };
 
@@ -154,6 +167,7 @@ export default function ChatInterface() {
       content: userContent,
       created_at: new Date().toISOString(),
     };
+
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
 
@@ -175,10 +189,21 @@ export default function ChatInterface() {
       }
 
       // Prepare messages - ✅ Fix: jangan include system message di array, sudah di backend
-      const apiMessages = messages.concat(userMessage).map(m => ({
-        role: m.role,
-        content: m.content,
-      })).filter(m => m.role !== 'system'); // Filter out system messages
+
+      const allMessages = [...messages, userMessage];
+    
+      // Konversi ke format API (exclude system, karena system dipisah)
+      const apiMessages = allMessages
+        .filter(m => m.role !== 'system')
+        .map(m => ({
+          role: m.role,
+          content: m.content,
+        }));
+
+      // const apiMessages = messages.concat(userMessage).map(m => ({
+      //   role: m.role,
+      //   content: m.content,
+      // })).filter(m => m.role !== 'system'); // Filter out system messages
 
       console.log('Sending chat request:', { model: selectedModel, messageCount: apiMessages.length }); // ✅ Log
 
