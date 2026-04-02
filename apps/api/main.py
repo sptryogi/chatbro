@@ -53,7 +53,7 @@ class LoginRequest(BaseModel):
     password: str
 
 class ChatRequest(BaseModel):
-    model: Literal["gemini", "deepseek", "groq", "kimi"]
+    model: Literal["gemini", "deepseek", "groq", "openai"]
     messages: List[dict]
     temperature: float = 0.7
     top_p: float = 0.9
@@ -105,7 +105,7 @@ async def chat(req: ChatRequest, user: dict = Depends(verify_token)):
             "gemini": GEMINI_API_KEY,
             "deepseek": DEEPSEEK_API_KEY,
             "groq": GROQ_API_KEY,
-            "openai": OPENAI_API_KEY  # Ganti kimi jadi openai
+            "openai": OPENAI_API_KEY  
         }
         
         if not api_keys.get(req.model):
@@ -167,7 +167,7 @@ async def chat(req: ChatRequest, user: dict = Depends(verify_token)):
             result = await chat_deepseek(req, combined_messages)
         elif req.model == "groq":
             result = await chat_groq(req, combined_messages)
-        elif req.model == "openai":  # ✅ Ganti dari kimi
+        elif req.model == "openai":  
             result = await chat_openai(req, combined_messages)
         else:
             raise HTTPException(status_code=400, detail="Invalid model")
@@ -256,7 +256,6 @@ async def chat_groq(req: ChatRequest, messages: List[dict]):
         logger.error(f"Groq error: {str(e)}")
         raise
 
-# Update fungsi chat_kimi - fix URL:
 async def chat_openai(req: ChatRequest, messages: List[dict]):
     try:
         client = OpenAI(
