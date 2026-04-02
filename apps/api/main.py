@@ -43,7 +43,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-KIMI_API_KEY = os.getenv("KIMI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -100,39 +100,78 @@ async def chat(req: ChatRequest, user: dict = Depends(verify_token)):
     logger.info(f"Chat request: model={req.model}, user={user['username']}")
     
     try:
-        # Cek API keys tersedia
+        # Cek API keys
         api_keys = {
             "gemini": GEMINI_API_KEY,
             "deepseek": DEEPSEEK_API_KEY,
             "groq": GROQ_API_KEY,
-            "kimi": KIMI_API_KEY
+            "openai": OPENAI_API_KEY  # Ganti kimi jadi openai
         }
         
         if not api_keys.get(req.model):
-            logger.error(f"API key for {req.model} not configured")
             raise HTTPException(status_code=500, detail=f"API key for {req.model} not configured")
         
-        # Build messages
+        # ✅ AMBIL SEMUA HISTORY DARI SEMUA SESSION USER
+        all_user_messages = []
+        try:
+            # Ambil semua session user
+            sessions = supabase.table("chat_sessions").select("id").eq("user_id", user["id"]).execute()
+            session_ids = [s["id"] for s in sessions.data] if sessions.data else []
+            
+            if session_ids:
+                # Ambil semua messages dari semua session (limit 50 terakhir untuk performa)
+                all_msgs = supabase.table("chat_messages")\
+                    .select("*")\
+                    .in_("session_id", session_ids)\
+                    .order("created_at", desc=False)\
+                    .limit(50)\
+                    .execute()
+                
+                if all_msgs.data:
+                    all_user_messages = [
+                        {"role": m["role"], "content": m["content"]}
+                        for m in all_msgs.data
+                        if m["role"] in ["user", "assistant"]  # Exclude system
+                    ]
+                    logger.info(f"Loaded {len(all_user_messages)} messages from all sessions")
+        except Exception as e:
+            logger.error(f"Failed to load history: {e}")
+            # Continue tanpa history kalau error
+        
+        # Build system prompt
         system_content = req.system_instruction or "You are a helpful assistant."
         if req.knowledge_context:
             system_content += f"\n\nContext:\n{req.knowledge_context}"
         
-        messages = [{"role": "system", "content": system_content}] + req.messages
-        logger.info(f"Sending {len(messages)} messages to {req.model}")
+        # ✅ GABUNGKAN: All-time history + current session messages + new message
+        # Hindari duplicate dengan check content terakhir
+        combined_messages = [{"role": "system", "content": system_content}]
         
-        # Route ke model yang sesuai
+        # Tambahkan all-time history (kecuali kalau sudah ada di current messages)
+        current_contents = {m["content"] for m in req.messages}
+        for msg in all_user_messages:
+            if msg["content"] not in current_contents and msg not in combined_messages:
+                combined_messages.append(msg)
+        
+        # Tambahkan current session messages
+        for msg in req.messages:
+            if msg["role"] != "system":
+                combined_messages.append(msg)
+        
+        logger.info(f"Total messages to AI: {len(combined_messages)}")
+        
+        # Route ke model
         if req.model == "gemini":
-            result = await chat_gemini(req, messages)
+            result = await chat_gemini(req, combined_messages)
         elif req.model == "deepseek":
-            result = await chat_deepseek(req, messages)
+            result = await chat_deepseek(req, combined_messages)
         elif req.model == "groq":
-            result = await chat_groq(req, messages)
-        elif req.model == "kimi":
-            result = await chat_kimi(req, messages)
+            result = await chat_groq(req, combined_messages)
+        elif req.model == "openai":  # ✅ Ganti dari kimi
+            result = await chat_openai(req, combined_messages)
         else:
             raise HTTPException(status_code=400, detail="Invalid model")
             
-        logger.info(f"Chat success: {req.model}")
         return result
         
     except HTTPException:
@@ -218,23 +257,23 @@ async def chat_groq(req: ChatRequest, messages: List[dict]):
         raise
 
 # Update fungsi chat_kimi - fix URL:
-async def chat_kimi(req: ChatRequest, messages: List[dict]):
+async def chat_openai(req: ChatRequest, messages: List[dict]):
     try:
         client = OpenAI(
-            api_key=KIMI_API_KEY, 
-            base_url="https://api.moonshot.ai/v1"  # ✅ Hapus spasi!
+            api_key=OPENAI_API_KEY, 
+            base_url="https://api.openai.com/v1"  # ✅ Official OpenAI API
         )
         
         response = client.chat.completions.create(
-            model="kimi-k2-0905-preview",
+            model="gpt-4o-mini",  # atau "gpt-4", "gpt-3.5-turbo"
             messages=messages,
             temperature=req.temperature,
             top_p=req.top_p,
             max_tokens=req.max_tokens
         )
-        return {"response": response.choices[0].message.content, "model": "kimi"}
+        return {"response": response.choices[0].message.content, "model": "openai"}
     except Exception as e:
-        logger.error(f"Kimi error: {str(e)}")
+        logger.error(f"OpenAI error: {str(e)}")
         raise
 
 # Sessions
