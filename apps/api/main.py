@@ -98,7 +98,7 @@ async def login(req: LoginRequest):
 MAX_MESSAGES = 30
 MAX_HISTORY = 50
 
-@router.post("/chat")
+@app.post("/chat")
 async def chat(req: ChatRequest, user: dict = Depends(verify_token)):
     logger.info(f"Chat request: model={req.model}, user={user['username']}")
 
