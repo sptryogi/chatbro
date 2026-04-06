@@ -17,6 +17,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 import io
 import base64
+from rag import get_rag, QdrantRAG
 
 app = FastAPI(title="ChatBro API")
 
@@ -44,6 +45,8 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+QDRANT_URL = os.getenv("QDRANT_URL")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -100,26 +103,29 @@ async def chat(req: ChatRequest, user: dict = Depends(verify_token)):
     logger.info(f"Chat request: model={req.model}, user={user['username']}")
     
     try:
-        # Cek API keys
+        # === API KEYS ===
         api_keys = {
             "gemini": GEMINI_API_KEY,
             "deepseek": DEEPSEEK_API_KEY,
             "groq": GROQ_API_KEY,
-            "openai": OPENAI_API_KEY  
+            "openai": OPENAI_API_KEY
         }
         
         if not api_keys.get(req.model):
             raise HTTPException(status_code=500, detail=f"API key for {req.model} not configured")
         
-        # ✅ AMBIL SEMUA HISTORY DARI SEMUA SESSION USER
+        
+        # === 1. LOAD ALL USER HISTORY ===
         all_user_messages = []
         try:
-            # Ambil semua session user
-            sessions = supabase.table("chat_sessions").select("id").eq("user_id", user["id"]).execute()
+            sessions = supabase.table("chat_sessions")\
+                .select("id")\
+                .eq("user_id", user["id"])\
+                .execute()
+            
             session_ids = [s["id"] for s in sessions.data] if sessions.data else []
             
             if session_ids:
-                # Ambil semua messages dari semua session (limit 50 terakhir untuk performa)
                 all_msgs = supabase.table("chat_messages")\
                     .select("*")\
                     .in_("session_id", session_ids)\
@@ -131,47 +137,86 @@ async def chat(req: ChatRequest, user: dict = Depends(verify_token)):
                     all_user_messages = [
                         {"role": m["role"], "content": m["content"]}
                         for m in all_msgs.data
-                        if m["role"] in ["user", "assistant"]  # Exclude system
+                        if m["role"] in ["user", "assistant"]
                     ]
-                    logger.info(f"Loaded {len(all_user_messages)} messages from all sessions")
+                    
+                    logger.info(f"Loaded {len(all_user_messages)} history messages")
+                    
         except Exception as e:
-            logger.error(f"Failed to load history: {e}")
-            # Continue tanpa history kalau error
+            logger.warning(f"History load failed: {e}")
         
-        # Build system prompt
+        
+        # === 2. RAG RETRIEVAL ===
+        knowledge_context = ""
+        try:
+            rag = get_rag()
+            
+            last_user_msg = next(
+                (m["content"] for m in reversed(req.messages) if m["role"] == "user"),
+                ""
+            )
+            
+            if last_user_msg:
+                results = rag.search(user["id"], last_user_msg, limit=3)
+                
+                if results:
+                    knowledge_context = "\n\n".join([
+                        f"[Source: {r['source']}]\n{r['text'][:500]}..."
+                        for r in results
+                    ])
+                    
+                    logger.info(f"🔍 RAG retrieved {len(results)} chunks")
+                    
+        except Exception as e:
+            logger.warning(f"RAG failed (non-critical): {e}")
+        
+        
+        # === 3. BUILD SYSTEM PROMPT ===
         system_content = req.system_instruction or "You are a helpful assistant."
-        if req.knowledge_context:
-            system_content += f"\n\nContext:\n{req.knowledge_context}"
         
-        # ✅ GABUNGKAN: All-time history + current session messages + new message
-        # Hindari duplicate dengan check content terakhir
+        if knowledge_context:
+            system_content += f"""
+
+RELEVANT CONTEXT FROM KNOWLEDGE BASE:
+{knowledge_context}
+
+Instructions:
+- Use this context if relevant
+- If not relevant, answer normally
+"""
+        
+        
+        # === 4. COMBINE MESSAGES ===
         combined_messages = [{"role": "system", "content": system_content}]
         
-        # Tambahkan all-time history (kecuali kalau sudah ada di current messages)
         current_contents = {m["content"] for m in req.messages}
+        
+        # Tambahkan history (hindari duplicate)
         for msg in all_user_messages:
-            if msg["content"] not in current_contents and msg not in combined_messages:
+            if msg["content"] not in current_contents:
                 combined_messages.append(msg)
         
-        # Tambahkan current session messages
+        # Tambahkan current messages
         for msg in req.messages:
             if msg["role"] != "system":
                 combined_messages.append(msg)
         
+        
         logger.info(f"Total messages to AI: {len(combined_messages)}")
         
-        # Route ke model
+        
+        # === 5. ROUTING MODEL ===
         if req.model == "gemini":
             result = await chat_gemini(req, combined_messages)
         elif req.model == "deepseek":
             result = await chat_deepseek(req, combined_messages)
         elif req.model == "groq":
             result = await chat_groq(req, combined_messages)
-        elif req.model == "openai":  
+        elif req.model == "openai":
             result = await chat_openai(req, combined_messages)
         else:
             raise HTTPException(status_code=400, detail="Invalid model")
-            
+        
         return result
         
     except HTTPException:
@@ -320,45 +365,58 @@ async def upload_knowledge(
     file: UploadFile = File(...),
     user: dict = Depends(verify_token)
 ):
+    """
+    NEW FLOW: File → Extract → Chunk → Embed → Qdrant Cloud
+    (Tidak lagi simpan ke Supabase Storage untuk text content)
+    """
     try:
         # Read file content
         content = await file.read()
         file_ext = file.filename.split(".")[-1].lower()
         
-        # Extract text based on file type
-        extracted_text = ""
-        if file_ext == "txt":
-            extracted_text = content.decode("utf-8")
-        elif file_ext == "pdf":
-            import io
-            from PyPDF2 import PdfReader
-            pdf = PdfReader(io.BytesIO(content))
-            for page in pdf.pages:
-                extracted_text += page.extract_text() + "\n"
-        elif file_ext == "docx":
-            import io
-            from docx import Document
-            doc = Document(io.BytesIO(content))
-            for para in doc.paragraphs:
-                extracted_text += para.text + "\n"
+        # Validasi file type
+        allowed = ["pdf", "docx", "doc", "txt"]
+        if file_ext not in allowed:
+            raise HTTPException(400, f"Only {allowed} allowed")
         
-        # Upload to Supabase Storage
-        file_path = f"{user['id']}/{datetime.now().isoformat()}_{file.filename}"
-        supabase.storage.from_("knowledge-files").upload(file_path, content)
+        # Process ke Qdrant
+        rag = get_rag()
+        result = rag.process_and_upload(
+            user_id=user["id"],
+            file_content=content,
+            filename=file.filename,
+            file_type=file_ext
+        )
         
-        # Save metadata to database
-        knowledge = supabase.table("knowledge_files").insert({
+        # Simpan metadata ke Supabase (untuk UI listing saja)
+        # Tidak perlu extracted_text lagi karena sudah di Qdrant
+        knowledge_meta = supabase.table("knowledge_files").insert({
             "user_id": user["id"],
-            "filename": file_path,
+            "filename": file.filename,
             "original_name": file.filename,
             "file_type": file_ext,
             "file_size": len(content),
-            "storage_path": file_path,
-            "extracted_text": extracted_text[:10000]  # Limit stored text
+            "storage_path": f"qdrant://{result['collection']}",  # Marker bahwa di Qdrant
+            "extracted_text": result["text_preview"],  # Preview saja
+            "chunks_count": result["chunks_uploaded"],
+            "metadata": {
+                "qdrant_collection": result["collection"],
+                "vectors_count": result["total_points"]
+            }
         }).execute()
         
-        return {"success": True, "file": knowledge.data[0]}
+        return {
+            "success": True,
+            "file": knowledge_meta.data[0],
+            "rag_result": {
+                "collection": result["collection"],
+                "chunks": result["chunks_uploaded"],
+                "preview": result["text_preview"]
+            }
+        }
+        
     except Exception as e:
+        logger.error(f"Upload error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/knowledge")
@@ -368,11 +426,32 @@ async def get_knowledge(user: dict = Depends(verify_token)):
 
 @app.delete("/knowledge/{file_id}")
 async def delete_knowledge(file_id: str, user: dict = Depends(verify_token)):
-    file_data = supabase.table("knowledge_files").select("*").eq("id", file_id).single().execute()
-    if file_data.data:
-        supabase.storage.from_("knowledge-files").remove([file_data.data["storage_path"]])
+    """Delete dari Supabase metadata + Qdrant vectors"""
+    try:
+        # Get file info
+        file_data = supabase.table("knowledge_files").select("*").eq("id", file_id).eq("user_id", user["id"]).single().execute()
+        
+        if not file_data.data:
+            raise HTTPException(404, "File not found")
+        
+        filename = file_data.data["original_name"]
+        
+        # Delete dari Qdrant
+        try:
+            rag = get_rag()
+            rag.delete_file_vectors(user["id"], filename)
+        except Exception as e:
+            logger.warning(f"Qdrant delete failed: {e}")
+        
+        # Delete dari Supabase
         supabase.table("knowledge_files").delete().eq("id", file_id).execute()
-    return {"success": True}
+        
+        return {"success": True, "deleted": filename}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 @app.get("/knowledge/{file_id}/content")
 async def get_knowledge_content(file_id: str, user: dict = Depends(verify_token)):
@@ -423,8 +502,12 @@ GOOGLE_DRIVE_CREDENTIALS = os.getenv("GOOGLE_DRIVE_CREDENTIALS")  # JSON string
 @app.post("/knowledge/drive")
 async def upload_from_drive(
     file_id: str = Form(...),
+    filename: str = Form(...),  # Tambah filename dari frontend
     user: dict = Depends(verify_token)
 ):
+    """
+    Import dari Google Drive langsung ke Qdrant
+    """
     try:
         # Setup Google Drive API
         creds_info = json.loads(GOOGLE_DRIVE_CREDENTIALS)
@@ -436,7 +519,6 @@ async def upload_from_drive(
         
         # Download file
         request = service.files().get_media(fileId=file_id)
-        file_metadata = service.files().get(fileId=file_id).execute()
         
         from googleapiclient.http import MediaIoBaseDownload
         fh = io.BytesIO()
@@ -446,13 +528,44 @@ async def upload_from_drive(
             status, done = downloader.next_chunk()
         
         content = fh.getvalue()
+        file_ext = filename.split(".")[-1].lower()
         
-        # Process sama seperti upload biasa...
-        # (extract text, save to supabase, etc)
+        # Process ke Qdrant (sama dengan upload biasa)
+        rag = get_rag()
+        result = rag.process_and_upload(
+            user_id=user["id"],
+            file_content=content,
+            filename=filename,
+            file_type=file_ext
+        )
         
-        return {"success": True, "file": file_metadata}
+        # Simpan metadata
+        knowledge_meta = supabase.table("knowledge_files").insert({
+            "user_id": user["id"],
+            "filename": f"gdrive://{file_id}",
+            "original_name": filename,
+            "file_type": file_ext,
+            "file_size": len(content),
+            "storage_path": f"qdrant://{result['collection']}",
+            "extracted_text": result["text_preview"],
+            "chunks_count": result["chunks_uploaded"],
+            "metadata": {
+                "source": "google_drive",
+                "drive_file_id": file_id,
+                "qdrant_collection": result["collection"]
+            }
+        }).execute()
+        
+        return {
+            "success": True,
+            "file": knowledge_meta.data[0],
+            "source": "google_drive",
+            "rag_result": result
+        }
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Drive import error: {e}")
+        raise HTTPException(500, str(e))
 
 if __name__ == "__main__":
     import uvicorn
