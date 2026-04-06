@@ -466,9 +466,6 @@ export default function ChatInterface() {
                       />
                       <span className="truncate flex-1">{file.original_name}</span>
                       <span className="text-gray-400">{formatFileSize(file.file_size)}</span>
-                      <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
-                        {file.chunks_count || file.metadata?.vectors_count || '?'} chunks
-                      </span>
                       
                       {/* Delete button */}
                       <button
